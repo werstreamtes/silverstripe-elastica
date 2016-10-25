@@ -126,8 +126,10 @@ class Searchable extends \DataExtension {
         if ($this->owner->hasExtension('Versioned')) {
             // add in the specific stage(s) 
             $fields['SS_Stage'] = array($stage);
+            $id = get_class($this->owner) . '_' . $this->owner->ID . '_' . $stage;
         } else {
             $fields['SS_Stage'] = array('Live', 'Stage');
+            $id = get_class($this->owner) . '_' . $this->owner->ID;
         }
         
         if ($this->owner->hasExtension('Hierarchy') || $this->owner->hasField('ParentID')) {
@@ -145,8 +147,6 @@ class Searchable extends \DataExtension {
         if (!isset($fields['ClassName'])) {
             $fields['ClassName'] = $this->owner->class;
         }
-
-        $id = get_class($this->owner) . '_' . $this->owner->ID . '_' . $stage;
         
         $this->owner->extend('updateSearchableData', $fields);
         
