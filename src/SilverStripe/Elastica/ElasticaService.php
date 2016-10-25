@@ -238,21 +238,26 @@ class ElasticaService {
         }
 
 		foreach ($this->getIndexedClasses() as $class) {
-            $logFunc("Indexing items of type $class");
-            $this->startBulkIndex();
-			foreach ($class::get() as $record) {
-                $logFunc("Indexing " . $record->Title);
-				$this->index($record);
+			$logFunc("Indexing items of type $class");
+			$limit = 1000;
+			$total = $class::get()->count();
+			
+			for($offset = 0; $offset < $total; $offset += $limit) {
+				$this->startBulkIndex();
+				foreach ($class::get()->limit($limit, $offset) as $record) {
+                			$logFunc("Indexing " . $record->Title);
+					$this->index($record);
+				}
+            			
+				if (\Object::has_extension($class, 'Versioned')) {
+					$live = \Versioned::get_by_stage($class, 'Live');
+                    			foreach ($live->limit($limit, $offset) as $liveRecord) {
+					    $logFunc("Indexing Live record " . $liveRecord->Title);
+					    $this->index($liveRecord, 'Live');
+					}
+            			}
+            			$this->endBulkIndex();
 			}
-            
-            if (\Object::has_extension($class, 'Versioned')) {
-                $live = \Versioned::get_by_stage($class, 'Live');
-                foreach ($live as $liveRecord) {
-                    $logFunc("Indexing Live record " . $liveRecord->Title);
-                    $this->index($liveRecord, 'Live');
-                }
-            }
-            $this->endBulkIndex();
 		}
 		
 	}
