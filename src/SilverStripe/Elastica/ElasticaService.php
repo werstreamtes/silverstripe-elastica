@@ -51,6 +51,8 @@ class ElasticaService {
     
     protected $connected = true;
     
+    public $searchableExtension = 'SilverStripe\\Elastica\\Searchable';	
+
 	/**
 	 * @param \Elastica\Client $client
 	 * @param string $index
@@ -271,7 +273,7 @@ class ElasticaService {
 		$classes = array();
 
 		foreach (\ClassInfo::subclassesFor('DataObject') as $candidate) {
-			if (singleton($candidate)->hasExtension('SilverStripe\\Elastica\\Searchable')) {
+			if (singleton($candidate)->hasExtension($this->searchableExtension)) {
 				$classes[] = $candidate;
 			}
 		}
