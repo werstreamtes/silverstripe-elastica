@@ -18,8 +18,12 @@ class ElasticaService {
      * 
      * Format of array(
      *   'type' => array(
-     *     'FieldA' => array('type' => elastictype, 'etc' => other)
-     *     'FieldB' => array('type' => elastictype, 'etc' => other)
+     *      'properties' => array(
+     *         'FieldA' => array('type' => elastictype, 'etc' => other),
+     *         'FieldB' => array('type' => elastictype, 'etc' => other),
+     *      ),
+     *      'params' => array(
+     *         'ParamA' => array(...)
      *   )
      * )
      *
@@ -217,12 +221,17 @@ class ElasticaService {
 		}
         
         if ($this->mappings) {
-            foreach ($this->mappings as $type => $fields) {
+            foreach ($this->mappings as $type => $definition) {
                 $mapping = new Mapping();
-                $mapping->setProperties($fields);
+                $mapping->setProperties($definition['properties']);
                 $mapping->setParam('date_detection', false);
-                
+                if(isset($definition['params'])) {
+                    foreach ($definition['params'] as $paramName => $paramConfig) {
+                        $mapping->setParam($paramName, $paramConfig);
+                    }
+                }
                 $mapping->setType($index->getType($type));
+
                 $mapping->send();
             }
         }
