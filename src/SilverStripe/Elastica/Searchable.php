@@ -83,6 +83,8 @@ class Searchable extends \DataExtension {
         $result['ClassName'] = array('type' => 'string');
         $result['ClassNameHierarchy'] = array('type' => 'string');
         
+        $result['LastIndexed'] = array('type' => 'date');
+        
         // fix up dates
         foreach ($result as $field => $spec) {
             if (isset($spec['type']) && ($spec['type'] == 'date')) {
@@ -146,6 +148,10 @@ class Searchable extends \DataExtension {
         
         if (!isset($fields['ClassName'])) {
             $fields['ClassName'] = $this->owner->class;
+        }
+        
+        if (!isset($fields['LastIndexed'])) {
+            $fields['LastIndexed'] = date('Y-m-d H:i:s');
         }
         
         $this->owner->extend('updateSearchableData', $fields);
