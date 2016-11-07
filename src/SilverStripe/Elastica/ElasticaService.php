@@ -254,6 +254,7 @@ class ElasticaService {
 
 		foreach ($this->getIndexedClasses() as $class) {
 			$logFunc("Indexing items of type $class");
+            		$start = date('Y-m-d H:i:s');
 			$limit = 1000;
 			$total = $class::get()->count();
 			
@@ -272,6 +273,21 @@ class ElasticaService {
 					}
             			}
             			$this->endBulkIndex();
+			}
+
+			// Remove any document of this type, that has not been updated during the refresh:
+			$logFunc("Removing obsolete Documents of type $class");
+			/** @var $sng Searchable */
+			$sng = singleton($class);
+			$type = $index->getType($sng->getElasticaType());
+
+			$rangeQuery = new Query(new Query\Range("LastIndexed", ["lt" => $start, "format" => 'yyyy-MM-dd HH:mm:ss']));
+
+			$results = $type->search($rangeQuery, ["limit" => $limit]);
+			while($results->count() > 0) {
+				$obsoleteIds = array_map(function($result) {return $result->getId();}, $results->getResults());
+				$type->deleteIds($obsoleteIds);
+				$results = $type->search($rangeQuery, ["limit" => $limit]);
 			}
 		}
 		
