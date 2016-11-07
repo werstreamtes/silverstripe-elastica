@@ -96,13 +96,17 @@ class ElasticaService {
 	 * @param Searchable $record
 	 */
 	public function index($record, $stage = 'Stage') {
-        if (!$this->enabled) {
-            return;
-        }
-		$document = $record->getElasticaDocument($stage);
-		$type = $record->getElasticaType();
+	if (!$this->enabled) {
+	    return;
+	}
+	if($record->canShowInSearch()) {
+	    $document = $record->getElasticaDocument($stage);
+	    $type = $record->getElasticaType();
 
-        $this->indexDocument($document, $type);
+	    $this->indexDocument($document, $type);
+	} else {
+	    $this->remove($record, $stage = 'Stage');
+	}
 	}
     
     public function indexDocument($document, $type) {
