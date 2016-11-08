@@ -281,13 +281,15 @@ class ElasticaService {
 			$sng = singleton($class);
 			$type = $index->getType($sng->getElasticaType());
 
-			$rangeQuery = new Query(new Query\Range("LastIndexed", ["lt" => $start, "format" => 'yyyy-MM-dd HH:mm:ss']));
+		  	$boolQuery = new Query\BoolQuery();
+			$boolQuery->addMust(new Query\Range("LastIndexed", ["lt" => $start, "format" => 'yyyy-MM-dd HH:mm:ss']));
+			$boolQuery->addMust(new Query\Match("ClassName", $class));
 
-			$results = $type->search($rangeQuery, ["limit" => $limit]);
+			$results = $type->search($boolQuery, ["limit" => $limit]);
 			while($results->count() > 0) {
 				$obsoleteIds = array_map(function($result) {return $result->getId();}, $results->getResults());
 				$type->deleteIds($obsoleteIds);
-				$results = $type->search($rangeQuery, ["limit" => $limit]);
+				$results = $type->search($boolQuery, ["limit" => $limit]);
 			}
 		}
 		
