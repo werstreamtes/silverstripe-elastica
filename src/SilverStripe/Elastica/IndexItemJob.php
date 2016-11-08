@@ -25,7 +25,7 @@ if (class_exists('AbstractQueuedJob')) {
             if (\ClassInfo::exists('Subsite')) {
                 \Subsite::disable_subsite_filter(true);
             }
-            $item = \DataObject::get_by_id($this->itemType, $this->itemID);
+            $item = \DataObject::get_by_id($this->itemType, $this->itemID, false);
             if (\ClassInfo::exists('Subsite')) {
                 \Subsite::disable_subsite_filter(false);
             }
