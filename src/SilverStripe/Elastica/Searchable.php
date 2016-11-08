@@ -204,7 +204,12 @@ class Searchable extends \DataExtension {
         }
         $stage = \Versioned::current_stage();
         
-		$this->service->index($this->owner, $stage);
+        if(\ClassInfo::exists('QueuedJob')) {
+            $indexing = new IndexItemJob($this->owner, $stage);
+            singleton('QueuedJobService')->queueJob($indexing);
+        } else {
+            $this->service->index($this->owner, $stage);
+        }
 	}
 
 	/**
@@ -224,7 +229,13 @@ class Searchable extends \DataExtension {
             return;
         }
         
-        $this->service->index($this->owner, 'Live');
+
+        if(\ClassInfo::exists('QueuedJob')) {
+            $indexing = new IndexItemJob($this->owner, "Live");
+            singleton('QueuedJobService')->queueJob($indexing);
+        } else {
+            $this->service->index($this->owner, "Live");
+        }
     }
     
     /**
