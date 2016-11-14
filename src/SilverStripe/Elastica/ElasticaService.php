@@ -31,6 +31,13 @@ class ElasticaService {
      */
     public $mappings = array();
 
+    /**
+     * Settings for Index creation
+     *
+     * @var array
+     */
+    public $indexSettings = array();	
+	
 	/**
 	 * @var \Elastica\Document[]
 	 */
@@ -199,7 +206,7 @@ class ElasticaService {
 		$index = $this->getIndex();
 
 		if (!$index->exists()) {
-			$index->create();
+			$index->create($this->indexSettings);
 		}
 
 		$this->createMappings($index);
