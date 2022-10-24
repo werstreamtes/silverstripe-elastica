@@ -9,7 +9,7 @@ Usage
 The first step is to configure the Elastic Search service. To do this, the configuration system
 is used. The simplest default configuration is:
 
-    Injector:
+    SilverStripe\Core\Injector\Injector:
       SilverStripe\Elastica\ElasticaService:
         constructor:
           - %$Elastica\Client

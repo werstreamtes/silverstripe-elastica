@@ -2,104 +2,140 @@
 
 namespace SilverStripe\Elastica;
 
+use Elastica\Document;
+use Elastica\Exception\BulkException;
 use Elastica\Exception\Connection\HttpException;
 use Elastica\Client;
+use Elastica\Index;
 use Elastica\Query;
-
 use Elastica\Type\Mapping;
+use ReflectionException;
+use SilverStripe\Core\ClassInfo;
+use SilverStripe\Core\Extensible;
+use SilverStripe\Versioned\Versioned;
 
 /**
  * A service used to interact with elastic search.
  */
-class ElasticaService {
-    
+class ElasticaService
+{
+
     /**
      * Custom mapping definitions
-     * 
+     *
      * Format of array(
      *   'type' => array(
-     *     'FieldA' => array('type' => elastictype, 'etc' => other)
-     *     'FieldB' => array('type' => elastictype, 'etc' => other)
+     *      'properties' => array(
+     *         'FieldA' => array('type' => elastictype, 'etc' => other),
+     *         'FieldB' => array('type' => elastictype, 'etc' => other),
+     *      ),
+     *      'params' => array(
+     *         'ParamA' => array(...)
      *   )
      * )
      *
      * @var array
      */
-    public $mappings = array();
-
-	/**
-	 * @var \Elastica\Document[]
-	 */
-	protected $buffer = array();
-
-	/**
-	 * @var bool controls whether indexing operations are buffered or not
-	 */
-	protected $buffered = false;
+    public $mappings = [];
 
     /**
-     * @var Elastica\Client
+     * Settings for Index creation
+     *
+     * @var array
      */
-	private $client;
-    
+    public $indexSettings = [];
+
+    /**
+     * @var Document[]
+     */
+    protected $buffer = [];
+
+    /**
+     * @var bool controls whether indexing operations are buffered or not
+     */
+    protected $buffered = false;
+
+    /**
+     * @var Client
+     */
+    private $client;
+
     /**
      * @var string
      */
-	private $index;
-    
+    private $index;
+
     public $enabled = true;
-    
+
     protected $connected = true;
-    
-	/**
-	 * @param \Elastica\Client $client
-	 * @param string $index
-	 */
-	public function __construct(Client $client, $index) {
-		$this->client = $client;
-		$this->index = $index;
-	}
 
-	/**
-	 * @return \Elastica\Client
-	 */
-	public function getClient() {
-		return $this->client;
-	}
+    public $searchableExtension = 'SilverStripe\\Elastica\\Searchable';
 
-	/**
-	 * @return \Elastica\Index
-	 */
-	public function getIndex() {
-		return $this->getClient()->getIndex($this->index);
-	}
+    /**
+     * @param Client $client
+     * @param string $index
+     */
+    public function __construct(Client $client, $index)
+    {
+        $this->client = $client;
+        $this->index = $index;
+    }
 
-	/**
-	 * Performs a search query and returns a result list.
-	 *
-	 * @param \Elastica\Query|string|array $query
-	 * @return ResultList
-	 */
-	public function search($query) {
-		return new ResultList($this->getIndex(), Query::create($query));
-	}
-    
-	/**
-	 * Either creates or updates a record in the index.
-	 *
-	 * @param Searchable $record
-	 */
-	public function index($record, $stage = 'Stage') {
+    /**
+     * @return Client
+     */
+    public function getClient(): Client
+    {
+        return $this->client;
+    }
+
+    /**
+     * @return Index
+     */
+    public function getIndex(): Index
+    {
+        return $this->getClient()->getIndex($this->index);
+    }
+
+    /**
+     * Performs a search query and returns a result list.
+     *
+     * @param Query|string|array $query
+     * @return ResultList
+     */
+    public function search($query): ResultList
+    {
+        return new ResultList($this->getIndex(), Query::create($query));
+    }
+
+    /**
+     * Either creates or updates a record in the index.
+     *
+     * @param Searchable $record
+     * @param string $stage
+     */
+    public function index($record, $stage = 'Stage')
+    {
         if (!$this->enabled) {
             return;
         }
-		$document = $record->getElasticaDocument($stage);
-		$type = $record->getElasticaType();
+        if ($record->canShowInSearch()) {
+            $document = $record->getElasticaDocument($stage);
+            $type = $record->getElasticaType();
 
-        $this->indexDocument($document, $type);
-	}
-    
-    public function indexDocument($document, $type) {
+            $this->indexDocument($document, $type);
+        } else {
+            $this->remove($record, $stage = 'Stage');
+        }
+    }
+
+    /**
+     * @param $document
+     * @param $type
+     * @return void
+     */
+    public function indexDocument($document, $type)
+    {
         if (!$this->enabled) {
             return;
         }
@@ -107,42 +143,44 @@ class ElasticaService {
             return;
         }
         if ($this->buffered) {
-			if (array_key_exists($type, $this->buffer)) {
-				$this->buffer[$type][] = $document;
-			} else {
-				$this->buffer[$type] = array($document);
-			}
-		} else {
-			$index = $this->getIndex();
+            if (array_key_exists($type, $this->buffer)) {
+                $this->buffer[$type][] = $document;
+            } else {
+                $this->buffer[$type] = array($document);
+            }
+        } else {
+            $index = $this->getIndex();
             try {
                 $index->getType($type)->addDocument($document);
-                $index->refresh();  
+                $index->refresh();
             } catch (HttpException $ex) {
                 $this->connected = false;
-                
+
                 // TODO LOG THIS ERROR
-                \SS_Log::log($ex, \SS_Log::ERR);
+                user_error($ex);
             }
-		}
+        }
     }
 
-	/**
-	 * Begins a bulk indexing operation where documents are buffered rather than
-	 * indexed immediately.
-	 */
-	public function startBulkIndex() {
-		$this->buffered = true;
-	}
+    /**
+     * Begins a bulk indexing operation where documents are buffered rather than
+     * indexed immediately.
+     */
+    public function startBulkIndex()
+    {
+        $this->buffered = true;
+    }
 
-	/**
-	 * Ends the current bulk index operation and indexes the buffered documents.
-	 */
-	public function endBulkIndex() {
+    /**
+     * Ends the current bulk index operation and indexes the buffered documents.
+     */
+    public function endBulkIndex()
+    {
         if (!$this->connected) {
             return;
         }
 
-		$index = $this->getIndex();
+        $index = $this->getIndex();
 
         try {
             foreach ($this->buffer as $type => $documents) {
@@ -151,127 +189,167 @@ class ElasticaService {
             }
         } catch (HttpException $ex) {
             $this->connected = false;
-
-            // TODO LOG THIS ERROR
-            \SS_Log::log($ex, \SS_Log::ERR);
-        } catch (\Elastica\Exception\BulkException $be) {
-            \SS_Log::log($be, \SS_Log::ERR);
+            user_error($ex);
+        } catch (BulkException $be) {
+            user_error($be);
             throw $be;
         }
 
-		$this->buffered = false;
-		$this->buffer = array();
-	}
+        $this->buffered = false;
+        $this->buffer = [];
+    }
 
-	/**
-	 * Deletes a record from the index.
-	 *
-	 * @param Searchable $record
-	 */
-	public function remove($record, $stage = 'Stage') {
-		$index = $this->getIndex();
-		$type = $index->getType($record->getElasticaType());
+    /**
+     * Deletes a record from the index.
+     *
+     * @param Searchable $record
+     * @param string $stage
+     * @return bool
+     */
+    public function remove($record, $stage = 'Stage'): bool
+    {
+        $index = $this->getIndex();
+        $type = $index->getType($record->getElasticaType());
 
         try {
             $type->deleteDocument($record->getElasticaDocument($stage));
         } catch (\Exception $ex) {
-            \SS_Log::log($ex, \SS_Log::WARN);
+            user_error($ex);
             return false;
         }
-        
+
         return true;
-	}
+    }
 
-	/**
-	 * Creates the index and the type mappings.
-	 */
-	public function define() {
-		$index = $this->getIndex();
+    /**
+     * Creates the index and the type mappings.
+     */
+    public function define()
+    {
+        $index = $this->getIndex();
 
-		if (!$index->exists()) {
-			$index->create();
-		}
+        if (!$index->exists()) {
+            $index->create($this->indexSettings);
+        }
 
-		$this->createMappings($index);
-	}
-    
+        $this->createMappings($index);
+    }
+
     /**
      * Define all known mappings
+     * @param Index $index
+     * @throws ReflectionException
      */
-    protected function createMappings(\Elastica\Index $index) {
+    protected function createMappings(Index $index)
+    {
         foreach ($this->getIndexedClasses() as $class) {
-			/** @var $sng Searchable */
-			$sng = singleton($class);
-            
+            /** @var $sng Searchable */
+            $sng = singleton($class);
+
             $type = $sng->getElasticaType();
             if (isset($this->mappings[$type])) {
                 // captured later
                 continue;
             }
 
-			$mapping = $sng->getElasticaMapping();
-			$mapping->setType($index->getType($type));
-			$mapping->send();
-		}
-        
+            $mapping = $sng->getElasticaMapping();
+            $mapping->setType($index->getType($type));
+            $mapping->send();
+        }
+
         if ($this->mappings) {
-            foreach ($this->mappings as $type => $fields) {
+            foreach ($this->mappings as $type => $definition) {
                 $mapping = new Mapping();
-                $mapping->setProperties($fields);
+                $mapping->setProperties($definition['properties']);
                 $mapping->setParam('date_detection', false);
-                
+                if (isset($definition['params'])) {
+                    foreach ($definition['params'] as $paramName => $paramConfig) {
+                        $mapping->setParam($paramName, $paramConfig);
+                    }
+                }
                 $mapping->setType($index->getType($type));
+
                 $mapping->send();
             }
         }
     }
 
-	/**
-	 * Re-indexes each record in the index.
-	 */
-	public function refresh($logFunc = null) {
-		$index = $this->getIndex();
+    /**
+     * Re-indexes each record in the index.
+     * @param null $logFunc
+     * @throws ReflectionException
+     */
+    public function refresh($logFunc = null)
+    {
+        $index = $this->getIndex();
         if (!$logFunc) {
             $logFunc = function ($msg) {
-                
+
             };
         }
 
-		foreach ($this->getIndexedClasses() as $class) {
+        foreach ($this->getIndexedClasses() as $class) {
             $logFunc("Indexing items of type $class");
-            $this->startBulkIndex();
-			foreach ($class::get() as $record) {
-                $logFunc("Indexing " . $record->Title);
-				$this->index($record);
-			}
-            
-            if (\Object::has_extension($class, 'Versioned')) {
-                $live = \Versioned::get_by_stage($class, 'Live');
-                foreach ($live as $liveRecord) {
-                    $logFunc("Indexing Live record " . $liveRecord->Title);
-                    $this->index($liveRecord, 'Live');
+            $start = date('Y-m-d H:i:s');
+            $limit = 1000;
+            $total = $class::get()->count();
+
+            for ($offset = 0; $offset < $total; $offset += $limit) {
+                $this->startBulkIndex();
+                foreach ($class::get()->limit($limit, $offset) as $record) {
+                    $logFunc("Indexing " . $record->Title);
+                    $this->index($record);
                 }
+
+                if (Extensible::has_extension($class, 'Versioned')) {
+                    $live = Versioned::get_by_stage($class, 'Live');
+                    foreach ($live->limit($limit, $offset) as $liveRecord) {
+                        $logFunc("Indexing Live record " . $liveRecord->Title);
+                        $this->index($liveRecord, 'Live');
+                    }
+                }
+                $this->endBulkIndex();
             }
-            $this->endBulkIndex();
-		}
-		
-	}
 
-	/**
-	 * Gets the classes which are indexed (i.e. have the extension applied).
-	 *
-	 * @return array
-	 */
-	public function getIndexedClasses() {
-		$classes = array();
+            // Remove any document of this type, that has not been updated during the refresh:
+            $logFunc("Removing obsolete Documents of type $class");
+            /** @var $sng Searchable */
+            $sng = singleton($class);
+            $type = $index->getType($sng->getElasticaType());
 
-		foreach (\ClassInfo::subclassesFor('DataObject') as $candidate) {
-			if (singleton($candidate)->hasExtension('SilverStripe\\Elastica\\Searchable')) {
-				$classes[] = $candidate;
-			}
-		}
+            $boolQuery = new Query\BoolQuery();
+            $boolQuery->addMust(new Query\Range("LastIndexed", ["lt" => $start, "format" => 'yyyy-MM-dd HH:mm:ss']));
+            $boolQuery->addMust(new Query\Match("ClassName", $class));
 
-		return $classes;
-	}
-    
+            $results = $type->search($boolQuery, ["limit" => $limit]);
+            while ($results->count() > 0) {
+                $obsoleteIds = array_map(function ($result) {
+                    return $result->getId();
+                }, $results->getResults());
+                $type->deleteIds($obsoleteIds);
+                $results = $type->search($boolQuery, ["limit" => $limit]);
+            }
+        }
+
+    }
+
+    /**
+     * Gets the classes which are indexed (i.e. have the extension applied).
+     *
+     * @return array
+     * @throws ReflectionException
+     */
+    public function getIndexedClasses(): array
+    {
+        $classes = [];
+
+        foreach (ClassInfo::subclassesFor('DataObject') as $candidate) {
+            if (singleton($candidate)->hasExtension($this->searchableExtension)) {
+                $classes[] = $candidate;
+            }
+        }
+
+        return $classes;
+    }
+
 }
