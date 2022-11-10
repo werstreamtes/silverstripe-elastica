@@ -154,15 +154,15 @@ class Searchable extends DataExtension
         }
 
         if (!isset($fields['ClassNameHierarchy'])) {
-            $classes = array_values(ClassInfo::ancestry($this->owner->class));
+            $classes = array_values(ClassInfo::ancestry($this->owner->ClassName));
             if (!$classes) {
-                $classes = [$this->owner->class];
+                $classes = [$this->owner->ClassName];
             }
             $fields['ClassNameHierarchy'] = $classes;
         }
 
         if (!isset($fields['ClassName'])) {
-            $fields['ClassName'] = $this->owner->class;
+            $fields['ClassName'] = $this->owner->ClassName;
         }
 
         if (!isset($fields['LastIndexed'])) {
