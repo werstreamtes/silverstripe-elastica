@@ -12,6 +12,7 @@ use Elastica\Type\Mapping;
 use ReflectionException;
 use SilverStripe\Core\ClassInfo;
 use SilverStripe\Core\Extensible;
+use SilverStripe\ORM\DataObject;
 use SilverStripe\Versioned\Versioned;
 
 /**
@@ -343,7 +344,7 @@ class ElasticaService
     {
         $classes = [];
 
-        foreach (ClassInfo::subclassesFor('DataObject') as $candidate) {
+        foreach (ClassInfo::subclassesFor(DataObject::class) as $candidate) {
             if (singleton($candidate)->hasExtension($this->searchableExtension)) {
                 $classes[] = $candidate;
             }

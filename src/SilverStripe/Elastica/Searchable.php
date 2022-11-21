@@ -9,6 +9,7 @@ use SilverStripe\Core\Config\Config;
 use SilverStripe\ORM\DataExtension;
 use SilverStripe\ORM\DataObject;
 use SilverStripe\Versioned\Versioned;
+use Symbiote\QueuedJobs\Services\QueuedJobService;
 
 /**
  * Adds elastic search integration to a data object.
@@ -220,9 +221,9 @@ class Searchable extends DataExtension
         }
         $stage = Versioned::get_stage();
 
-        if (ClassInfo::exists('QueuedJob')) {
+        if (class_exists(QueuedJobService::class)) {
             $indexing = new IndexItemJob($this->owner, $stage);
-            singleton('QueuedJobService')->queueJob($indexing);
+            QueuedJobService::singleton()->queueJob($indexing);
         } else {
             $this->service->index($this->owner, $stage);
         }
@@ -250,9 +251,9 @@ class Searchable extends DataExtension
             return;
         }
 
-        if (ClassInfo::exists('QueuedJob')) {
+        if (class_exists(QueuedJobService::class)) {
             $indexing = new IndexItemJob($this->owner, "Live");
-            singleton('QueuedJobService')->queueJob($indexing);
+            QueuedJobService::singleton()->queueJob($indexing);
         } else {
             $this->service->index($this->owner, "Live");
         }

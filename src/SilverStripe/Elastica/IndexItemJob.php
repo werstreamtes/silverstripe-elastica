@@ -8,22 +8,17 @@ use SilverStripe\ORM\DataObject;
 use Symbiote\QueuedJobs\Services\AbstractQueuedJob;
 use Symbiote\QueuedJobs\Services\QueuedJob;
 
-if (class_exists('AbstractQueuedJob')) {
+if (class_exists(AbstractQueuedJob::class)) {
 
     class IndexItemJob extends AbstractQueuedJob
     {
-
-        private $itemType;
-        private $itemID;
-        private $stage;
-
         public function __construct($itemToIndex = null, $stage = null)
         {
             parent::__construct();
 
             $this->currentStep = -1;
             if ($itemToIndex) {
-                $this->itemType = $itemToIndex->class;
+                $this->itemType = $itemToIndex->ClassName;
                 $this->itemID = $itemToIndex->ID;
                 $this->stage = $stage;
                 $this->totalSteps = 1;
