@@ -304,11 +304,11 @@ class ResultList extends ViewableData implements Limitable
     }
 
     /**
-     * @param $offset
+     * @param mixed $offset
      * @throws \Exception
      * @ignore
      */
-    public function offsetExists($offset): mixed
+    public function offsetExists(mixed $offset): bool
     {
         throw new \Exception();
     }
