@@ -308,7 +308,28 @@ class ResultList extends ViewableData implements Limitable
      * @throws \Exception
      * @ignore
      */
-    public function offsetExists($offset)
+    public function offsetExists($offset): mixed
+    {
+        throw new \Exception();
+    }
+
+    /**
+     * @param mixed $offset
+     * @throws \Exception
+     * @ignore
+     */
+    public function offsetGet(mixed $offset): mixed
+    {
+        throw new \Exception();
+    }
+
+    /**
+     * @param mixed $offset
+     * @param mixed $value
+     * @throws \Exception
+     * @ignore
+     */
+    public function offsetSet(mixed $offset, mixed $value): void
     {
         throw new \Exception();
     }
@@ -318,28 +339,7 @@ class ResultList extends ViewableData implements Limitable
      * @throws \Exception
      * @ignore
      */
-    public function offsetGet($offset)
-    {
-        throw new \Exception();
-    }
-
-    /**
-     * @param $offset
-     * @param $value
-     * @throws \Exception
-     * @ignore
-     */
-    public function offsetSet($offset, $value)
-    {
-        throw new \Exception();
-    }
-
-    /**
-     * @param $offset
-     * @throws \Exception
-     * @ignore
-     */
-    public function offsetUnset($offset)
+    public function offsetUnset(mixed $offset): void
     {
         throw new \Exception();
     }
