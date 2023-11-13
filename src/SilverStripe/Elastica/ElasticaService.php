@@ -320,7 +320,7 @@ class ElasticaService
 
             $boolQuery = new Query\BoolQuery();
             $boolQuery->addMust(new Query\Range("LastIndexed", ["lt" => $start, "format" => 'yyyy-MM-dd HH:mm:ss']));
-            $boolQuery->addMust(new Query\Match("ClassName", $class));
+            $boolQuery->addMust(new Query\MatchQuery("ClassName", $class));
 
             $results = $type->search($boolQuery, ["limit" => $limit]);
             while ($results->count() > 0) {
